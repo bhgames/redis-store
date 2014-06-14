@@ -20,10 +20,15 @@ class Redis
         if @addresses.empty?
           @addresses << {}
         end
-        
+
         if @addresses.size > 1
           ::Redis::DistributedStore.new @addresses, @options
         else
+          # Shim for second call whereit's empty.
+          if @addresses.first[:host].nil?
+            uri = URI.parse(ENV["REDISTOGO_URL"])
+            @addresses[0] = {:host => uri.host, :port => uri.port, :password => uri.password, namespace: "cache" }
+          end
           ::Redis::Store.new @addresses.first.merge(@options)
         end
       end
@@ -41,7 +46,7 @@ class Redis
         if host_options?(options)
           options
         else
-          nil 
+          nil
         end
       end
 
@@ -67,7 +72,7 @@ class Redis
 
         options = {
           :host     => uri.host,
-          :port     => uri.port || DEFAULT_PORT, 
+          :port     => uri.port || DEFAULT_PORT,
           :password => uri.password
         }
 
@@ -80,7 +85,7 @@ class Redis
       private
 
       def extract_addresses_and_options(*options)
-        options.flatten.compact.each do |token| 
+        options.flatten.compact.each do |token|
           resolved = self.class.resolve(token)
           if resolved
             @addresses << resolved
